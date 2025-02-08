@@ -92,9 +92,14 @@ def generate_launch_description():
     # RViz.
     rviz = Node(
         package="rviz2",
+        namespace="wildthumper",
         executable="rviz2",
         arguments=["-d", f'{Path(pkg_project_bringup) / "rviz" / "wildthumper.rviz"}'],
         condition=IfCondition(LaunchConfiguration("rviz")),
+        remappings=[
+            ("/tf", "tf"),
+            ("/tf_static", "tf_static"),
+        ],
     )
 
     return LaunchDescription(
