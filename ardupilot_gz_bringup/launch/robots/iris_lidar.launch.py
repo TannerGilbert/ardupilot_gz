@@ -129,10 +129,11 @@ def generate_robot_launch_actions(context: LaunchContext, *args, **kwargs):
             "sdf_file": sdf_file_modified,
             "bridge_config_file": bridge_config_file,
             "command": "arducopter",
+            "robot_name": LaunchConfiguration("robot_name"),
+            "world_name": LaunchConfiguration("world_name"),
             "model": LaunchConfiguration("model"),
             "defaults": LaunchConfiguration("defaults"),
             "synthetic_clock": LaunchConfiguration("synthetic_clock"),
-            "name": name,
             "x": LaunchConfiguration("x"),
             "y": LaunchConfiguration("y"),
             "z": LaunchConfiguration("z"),
@@ -147,8 +148,10 @@ def generate_robot_launch_actions(context: LaunchContext, *args, **kwargs):
     return [log, robot]
 
 
-def generate_launch_arguments() -> List[LaunchDescriptionEntity]:
-    """Generate a list of launch arguments"""
+def generate_launch_arguments() -> List[DeclareLaunchArgument]:
+    """Generate a list of launch arguments."""
+    pkg_ardupilot_sitl = get_package_share_directory("ardupilot_sitl")
+
     return [
         # sitl_dds
         DeclareLaunchArgument(
@@ -255,4 +258,4 @@ def generate_launch_description() -> LaunchDescription:
 
     launch_arguments = generate_launch_arguments()
 
-    return LaunchDescription(launch_arguments + [OpaqueFunction(function=choose_lidar)])
+    return LaunchDescription(launch_arguments + [OpaqueFunction(function=generate_robot_launch_actions)])

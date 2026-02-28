@@ -60,70 +60,10 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
-def generate_launch_arguments() -> List[LaunchDescriptionEntity]:
-    """Generate a list of launch arguments"""
-    return [
-        DeclareLaunchArgument(
-            "use_gz_tf", default_value="true", description="Use Gazebo TF."
-        ),
-        # Gazebo model launch arguments.
-        DeclareLaunchArgument(
-            "name",
-            default_value="wildthumper",
-            description="Name for the model instance.",
-        ),
-        DeclareLaunchArgument(
-            "x",
-            default_value="0",
-            description="The intial 'x' position (m).",
-        ),
-        DeclareLaunchArgument(
-            "y",
-            default_value="0",
-            description="The intial 'y' position (m).",
-        ),
-        DeclareLaunchArgument(
-            "z",
-            default_value="0",
-            description="The intial 'z' position (m).",
-        ),
-        DeclareLaunchArgument(
-            "R",
-            default_value="0",
-            description="The intial roll angle (radians).",
-        ),
-        DeclareLaunchArgument(
-            "P",
-            default_value="0",
-            description="The intial pitch angle (radians).",
-        ),
-        DeclareLaunchArgument(
-            "Y",
-            default_value="0",
-            description="The intial yaw angle (radians).",
-        ),
-        DeclareLaunchArgument(
-            "instance",
-            default_value="0",
-            description="Set instance of SITL "
-            "(adds 10*instance to all port numbers).",
-        ),
-        DeclareLaunchArgument(
-            "sysid",
-            default_value="",
-            description="Set SYSID_THISMAV.",
-        ),
-    ]
-
-
-def generate_launch_description() -> LaunchDescription:
-    """Generate a launch description for a wild thumper rover."""
-
-    launch_arguments = generate_launch_arguments()
-
+def generate_robot_launch_actions(context: LaunchContext, *args, **kwargs):
+    """Launch the robot_state_publisher and ros_gz bridge nodes."""
     pkg_ardupilot_sitl_models = get_package_share_directory("ardupilot_sitl_models")
     pkg_project_bringup = get_package_share_directory("ardupilot_gz_bringup")
-    pkg_ardupilot_sitl = get_package_share_directory("ardupilot_sitl")
 
     # Load SDF file.
     sdf_file = os.path.join(
@@ -132,16 +72,16 @@ def generate_launch_description() -> LaunchDescription:
     with open(sdf_file, "r") as infp:
         robot_desc = infp.read()
 
-        # substitute `models://` with `package://ardupilot_sitl_models/models/`
-        # for sdformat_urdf plugin used by robot_state_publisher
-        robot_desc = robot_desc.replace(
-            "model://wildthumper", "package://ardupilot_sitl_models/models/wildthumper"
-        )
+    # Substitute `models://` with `package://ardupilot_sitl_models/models/`
+    # for sdformat_urdf plugin used by robot_state_publisher
+    robot_desc = robot_desc.replace(
+        "model://wildthumper", "package://ardupilot_sitl_models/models/wildthumper"
+    )
 
-        robot_desc = robot_desc.replace(
-            "model://wildthumper_with_lidar",
-            "package://ardupilot_sitl_models/models/wildthumper_with_lidar",
-        )
+    robot_desc = robot_desc.replace(
+        "model://wildthumper_with_lidar",
+        "package://ardupilot_sitl_models/models/wildthumper_with_lidar",
+    )
 
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".yaml")
     sdf_file_modified = temp_file.name
@@ -149,12 +89,8 @@ def generate_launch_description() -> LaunchDescription:
     with open(sdf_file_modified, "w") as temp_file:
         temp_file.write(robot_desc)
 
-    sitl_config_file = str(
-        Path(pkg_ardupilot_sitl) / "config" / "default_params" / "rover-skid.parm"
-    )
-
-    bridge_config_file = str(
-        Path(pkg_project_bringup) / "config" / "wildthumper_bridge.yaml"
+    bridge_config_file = os.path.join(
+        pkg_project_bringup, "config", "wildthumper_bridge.yaml"
     )
 
     robot = IncludeLaunchDescription(
@@ -173,10 +109,13 @@ def generate_launch_description() -> LaunchDescription:
         launch_arguments={
             "use_gz_tf": LaunchConfiguration("use_gz_tf"),
             "sdf_file": sdf_file_modified,
-            "sitl_config_file": sitl_config_file,
             "bridge_config_file": bridge_config_file,
             "command": "ardurover",
-            "name": LaunchConfiguration("name"),
+            "robot_name": LaunchConfiguration("robot_name"),
+            "world_name": LaunchConfiguration("world_name"),
+            "model": LaunchConfiguration("model"),
+            "defaults": LaunchConfiguration("defaults"),
+            "synthetic_clock": LaunchConfiguration("synthetic_clock"),
             "x": LaunchConfiguration("x"),
             "y": LaunchConfiguration("y"),
             "z": LaunchConfiguration("z"),
@@ -188,9 +127,111 @@ def generate_launch_description() -> LaunchDescription:
         }.items(),
     )
 
-    return LaunchDescription(
-        launch_arguments
-        + [
-            robot,
-        ]
-    )
+    return [robot]
+
+
+def generate_launch_arguments() -> List[DeclareLaunchArgument]:
+    """Generate a list of launch arguments."""
+    pkg_ardupilot_sitl = get_package_share_directory("ardupilot_sitl")
+
+    return [
+        # sitl_dds
+        DeclareLaunchArgument(
+            "model",
+            default_value="json",
+            description="Set simulation model. Set default to 'json' for Gazebo.",
+        ),
+        DeclareLaunchArgument(
+            "defaults",
+            default_value=(
+                os.path.join(
+                    pkg_ardupilot_sitl,
+                    "config",
+                    "default_params",
+                    "rover.parm",
+                )
+                + ","
+                + os.path.join(
+                    pkg_ardupilot_sitl,
+                    "config",
+                    "default_params",
+                    "rover-skid.parm",
+                )
+                + ","
+                + os.path.join(
+                    pkg_ardupilot_sitl,
+                    "config",
+                    "default_params",
+                    "dds_udp.parm",
+                ),
+            ),
+            description="Set path to default params for the iris with DDS.",
+        ),
+        DeclareLaunchArgument(
+            "synthetic_clock",
+            default_value="True",
+        ),
+        DeclareLaunchArgument(
+            "instance",
+            default_value="0",
+            description="Set instance of SITL "
+                        "(adds 10*instance to all port numbers).",
+        ),
+        DeclareLaunchArgument(
+            "sysid",
+            default_value="",
+            description="Set SYSID_THISMAV.",
+        ),
+        # topic_tools_tf
+        DeclareLaunchArgument(
+            "use_gz_tf", default_value="true", description="Use Gazebo TF."
+        ),
+        # bridge, spawn_robot
+        DeclareLaunchArgument(
+            "world_name",
+            default_value="maze",
+            description="Name for the world instance.",
+        ),
+        DeclareLaunchArgument(
+            "robot_name",
+            default_value="iris",
+            description="Name for the model instance.",
+        ),
+        DeclareLaunchArgument(
+            "x",
+            default_value="0.0",
+            description="The initial 'x' position (m).",
+        ),
+        DeclareLaunchArgument(
+            "y",
+            default_value="0.0",
+            description="The initial 'y' position (m).",
+        ),
+        DeclareLaunchArgument(
+            "z",
+            default_value="0.2",
+            description="The initial 'z' position (m).",
+        ),
+        DeclareLaunchArgument(
+            "R",
+            default_value="0.0",
+            description="The initial roll angle (radians).",
+        ),
+        DeclareLaunchArgument(
+            "P",
+            default_value="0.0",
+            description="The initial pitch angle (radians).",
+        ),
+        DeclareLaunchArgument(
+            "Y",
+            default_value="0.0",
+            description="The initial yaw angle (radians).",
+        ),
+    ]
+
+def generate_launch_description() -> LaunchDescription:
+    """Generate a launch description for a iris quadrotor"""
+
+    launch_arguments = generate_launch_arguments()
+
+    return LaunchDescription(launch_arguments + [OpaqueFunction(function=generate_robot_launch_actions)])

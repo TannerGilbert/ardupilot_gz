@@ -38,7 +38,6 @@ from typing import List
 import math
 import os
 import tempfile
-from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -95,11 +94,9 @@ def generate_robot_launch_actions(context: LaunchContext, *args, **kwargs):
     with open(sdf_file_modified, "w") as temp_file:
         temp_file.write(robot_desc)
 
-    sitl_config_file = str(
-        Path(pkg_ardupilot_gazebo) / "config" / "gazebo-iris-gimbal.parm"
+    bridge_config_file = os.path.join(
+        pkg_project_bringup, "config", "iris_bridge.yaml"
     )
-
-    bridge_config_file = str(Path(pkg_project_bringup) / "config" / "iris_bridge.yaml")
 
     robot = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -117,11 +114,10 @@ def generate_robot_launch_actions(context: LaunchContext, *args, **kwargs):
         launch_arguments={
             "use_gz_tf": LaunchConfiguration("use_gz_tf"),
             "sdf_file": sdf_file_modified,
-            "sitl_config_file": sitl_config_file,
             "bridge_config_file": bridge_config_file,
             "command": "arducopter",
             "robot_name": robot_name,
-            "world_name": world_name,
+            "world_name": LaunchConfiguration("world_name"),
             "model": LaunchConfiguration("model"),
             "defaults": LaunchConfiguration("defaults"),
             "synthetic_clock": LaunchConfiguration("synthetic_clock"),
@@ -139,9 +135,12 @@ def generate_robot_launch_actions(context: LaunchContext, *args, **kwargs):
     return [robot]
 
 
-def generate_launch_arguments() -> List[LaunchDescriptionEntity]:
-    """Generate a list of launch arguments"""
+def generate_launch_arguments() -> List[DeclareLaunchArgument]:
+    """Generate a list of launch arguments."""
+    pkg_ardupilot_sitl = get_package_share_directory("ardupilot_sitl")
+
     return [
+        # sitl_dds
         DeclareLaunchArgument(
             "model",
             default_value="json",
@@ -150,31 +149,36 @@ def generate_launch_arguments() -> List[LaunchDescriptionEntity]:
         DeclareLaunchArgument(
             "defaults",
             default_value=(
-                    os.path.join(
-                        pkg_ardupilot_sitl,
-                        "config",
-                        "default_params",
-                        "copter.parm",
-                    )
-                    + ","
-                    + os.path.join(
-                pkg_ardupilot_gazebo,
-                "config",
-                "gazebo-iris-gimbal.parm",
-            )
-                    + ","
-                    + os.path.join(
-                pkg_ardupilot_sitl,
-                "config",
-                "default_params",
-                "dds_udp.parm",
-            )
+                os.path.join(
+                    pkg_ardupilot_sitl,
+                    "config",
+                    "default_params",
+                    "copter.parm",
+                )
+                + ","
+                + os.path.join(
+                    pkg_ardupilot_sitl,
+                    "config",
+                    "default_params",
+                    "gazebo-iris.parm",
+                )
+                + ","
+                + os.path.join(
+                    pkg_ardupilot_sitl,
+                    "config",
+                    "default_params",
+                    "dds_udp.parm",
+                ),
             ),
             description="Set path to default params for the iris with DDS.",
         ),
         DeclareLaunchArgument(
             "synthetic_clock",
             default_value="True",
+        ),
+        DeclareLaunchArgument(
+            "sim_address",
+            default_value="127.0.0.1",
         ),
         DeclareLaunchArgument(
             "instance",
@@ -241,5 +245,5 @@ def generate_launch_description() -> LaunchDescription:
     launch_arguments = generate_launch_arguments()
 
     return LaunchDescription(
-        launch_arguments + [OpaqueFunction(function=substitue_name)]
+        launch_arguments + [OpaqueFunction(function=generate_robot_launch_actions)]
     )
