@@ -189,7 +189,7 @@ def launch_sitl_dds(context: LaunchContext) -> List[LaunchDescriptionEntity]:
     port_offset = 10 * instance
     master_port = 5760 + port_offset
     sitl_port = 5501 + port_offset
-    sim_address = "127.0.0.1"
+    sim_address = LaunchConfiguration("sim_address").perform(context)
 
     tty0 = f"./dev/ttyROS{instance * 10}"
     tty1 = f"./dev/ttyROS{instance * 10 + 1}"
@@ -277,6 +277,10 @@ def generate_launch_arguments() -> List[LaunchDescriptionEntity]:
         DeclareLaunchArgument(
             "synthetic_clock",
             default_value="True",
+        ),
+        DeclareLaunchArgument(
+            "sim_address",
+            default_value="127.0.0.1",
         ),
         DeclareLaunchArgument(
             "instance",

@@ -83,6 +83,13 @@ def generate_robot_launch_actions(context: LaunchContext, *args, **kwargs):
         "package://ardupilot_sitl_models/models/wildthumper_with_lidar",
     )
 
+    # Ensure the ArduPilot plugin and SITL have a consistent sim_address
+    sim_address = LaunchConfiguration("sim_address").perform(context)
+    robot_desc = robot_desc.replace(
+        "<fdm_addr>127.0.0.1</fdm_addr>",
+        f"<fdm_addr>{sim_address}</fdm_addr>",
+    )
+
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".yaml")
     sdf_file_modified = temp_file.name
 
@@ -116,6 +123,7 @@ def generate_robot_launch_actions(context: LaunchContext, *args, **kwargs):
             "model": LaunchConfiguration("model"),
             "defaults": LaunchConfiguration("defaults"),
             "synthetic_clock": LaunchConfiguration("synthetic_clock"),
+            "sim_address": LaunchConfiguration("sim_address"),
             "x": LaunchConfiguration("x"),
             "y": LaunchConfiguration("y"),
             "z": LaunchConfiguration("z"),
@@ -172,6 +180,10 @@ def generate_launch_arguments() -> List[DeclareLaunchArgument]:
             default_value="True",
         ),
         DeclareLaunchArgument(
+            "sim_address",
+            default_value="127.0.0.1",
+        ),
+        DeclareLaunchArgument(
             "instance",
             default_value="0",
             description="Set instance of SITL "
@@ -194,7 +206,7 @@ def generate_launch_arguments() -> List[DeclareLaunchArgument]:
         ),
         DeclareLaunchArgument(
             "robot_name",
-            default_value="iris",
+            default_value="wildthumper",
             description="Name for the model instance.",
         ),
         DeclareLaunchArgument(

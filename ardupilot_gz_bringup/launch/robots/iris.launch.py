@@ -121,6 +121,7 @@ def generate_robot_launch_actions(context: LaunchContext, *args, **kwargs):
             "model": LaunchConfiguration("model"),
             "defaults": LaunchConfiguration("defaults"),
             "synthetic_clock": LaunchConfiguration("synthetic_clock"),
+            "sim_address": LaunchConfiguration("sim_address"),
             "x": LaunchConfiguration("x"),
             "y": LaunchConfiguration("y"),
             "z": LaunchConfiguration("z"),
@@ -160,7 +161,7 @@ def generate_launch_arguments() -> List[DeclareLaunchArgument]:
                     pkg_ardupilot_sitl,
                     "config",
                     "default_params",
-                    "gazebo-iris.parm",
+                    "gazebo-iris-gimbal.parm",
                 )
                 + ","
                 + os.path.join(
